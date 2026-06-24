@@ -1,3 +1,3 @@
-# GSIM
+# SIMERC - EJECTOR REFRIGERATION CYCLE SIMULATOR
 
 #Um App teste feito com Flet
