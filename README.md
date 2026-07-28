@@ -55,6 +55,7 @@ External Python packages used in this project, whether in the main program or in
 - [XlsxWritter](https://xlsxwriter.readthedocs.io/)
 - [Cython](https://cython.org/)
 - [Pandas](https://pandas.pydata.org/)
+- [PyInstaller](https://pyinstaller.org/en/stable/)
   
   
 ## License
