@@ -20,7 +20,7 @@ Among the features of this program are:
 - Batch Sim results can be viewed within the program itself, and exported as csv, xlsx, or parquet
 - The parameters $\phi_m$ and $\psi$ can be expressions as functions of _Ar_ and _Pr_, as in the work of [Cardemil and Colle (2012)](https://doi.org/10.1016/j.enconman.2012.05.009).
   
-Example of results obtained for R134a, using the BICUBIC backend with 8 million simulations (the graphical visualization was made using [Blender](https://www.blender.org/), from data [this data](https://drive.google.com/drive/folders/1IA9rttPIPdTGxCPez936W97WVgaiG7nm?usp=sharing) exported by SIMERC):
+Example of results obtained for R134a, using the BICUBIC backend with 8 million simulations (the graphical visualization was made using [Blender](https://www.blender.org/), from [this data](https://drive.google.com/drive/folders/1IA9rttPIPdTGxCPez936W97WVgaiG7nm?usp=sharing) exported by SIMERC):
 ![Example of results](docstrings/images/R134a%20-%208%20Million%20Simulations.webp)
   
 Other program screenshots:
