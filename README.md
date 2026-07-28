@@ -42,7 +42,7 @@ Other program screenshots:
   
 # CODE AND DOWNLOAD
   
-SIMERC has been made available as a Windows executable via [PyInstaller](https://pyinstaller.org/en/stable/) and can be downloaded [here](SIMERC/SIMERC%20-%20Windows.zip).  
+SIMERC has been made available as a Windows executable via [PyInstaller](https://pyinstaller.org/en/stable/) and can be downloaded [HERE](https://github.com/GPCTM-BR/SIMERC/releases/tag/SIMERC_v1.0).  
 Additionally, all the code can also be accessed [here](SIMERC/Code/)
   
 ## Other Information
