@@ -60,3 +60,10 @@ External Python packages used in this project, whether in the main program or in
   
 ## License
 This project is licensed under the MIT License — see the [LICENSE](SIMERC/LICENSE.txt) file for details.
+  
+  
+# 
+<div align="center"><img src="docstrings/images/ICON.png" width="350"></div>
+<div align=center>
+    SIMERC Icon
+</div>
