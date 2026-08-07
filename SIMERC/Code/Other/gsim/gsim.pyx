@@ -312,8 +312,8 @@ cdef class Ejector:
     cdef public double h_5, h_5_is
     
     cdef public double entrainment_ratio, Pd_crit, P_lift_ratio
-    cdef public bint converged           # AND dos 5 converged_X individuais
-    cdef public double max_residual      # maior dos 5 residuos, em valor absoluto (unidades misturadas, só p/ triagem)
+    cdef public bint converged           
+    cdef public double max_residual      
     
     cdef public object fluid
     cdef public MaterialStream primary_inlet_stream
@@ -418,14 +418,12 @@ cdef class Ejector:
     # =========================================================================
     #P.S: eu screvi uma secante para cada um porque ai eu não preciso passar a função, o que iria requerer uma passagem pelo python
     #(do jeito que tá dá pra ver no annotate que tá tudo branquinho, só o except * passa pelo python)
-    # NOTA: critério de convergência é o RESÍDUO real fabs(f1), não fabs(f1-f0).
+    # NOTA: critério de convergência é o RESÍDUO real fabs(f1).
     # fabs(f1-f0) só mede se o secante parou de se mexer entre iterações — o que
     # pode acontecer por estagnação (f0≈f1 sem nenhum dos dois estar perto de
     # zero), "convergindo" numericamente sem ter achado a raiz de verdade.
     # Ao final, converged_X/iter_X/residual_X ficam registrados como atributos
-    # públicos, e uma exceção é levantada se o laço estourou max_iter (ou
-    # estagnou) sem satisfazer a tolerância — em vez de devolver silenciosamente
-    # o valor da última iteração como se fosse a resposta certa.
+    # públicos.
     cdef double _secant_P_t(self, double guess) except *:
         cdef double P0 = guess
         cdef double P1 = guess * 0.99
@@ -444,8 +442,6 @@ cdef class Ejector:
         self.iter_Pt = i
         self.residual_Pt = fabs(f1)
         self.converged_Pt = self.residual_Pt <= self.Pt_tol
-        # sem raise: fica registrado em converged_Pt/iter_Pt/residual_Pt pra
-        # ser avaliado depois (ex.: como coluna no batch), sem abortar a simulação
         return P1
 
     cdef double _secant_P_p1(self, double guess) except *:
@@ -545,16 +541,11 @@ cdef class Ejector:
             T = self._cp_T()
             rho = self._cp_rhomass()
 
-            # ATENÇÃO: perto do domo, backends tabulares (BICUBIC&HEOS) podem
-            # resolver o flash PT no ramo ERRADO da tabela (ex.: cair no ramo
-            # líquido ao pedir um ponto a T_sat_v+1e-4, que deveria ser vapor),
-            # retornando propriedades absurdas (rho, cp negativo, a=nan) sem
-            # lançar exceção nenhuma. specify_phase trava explicitamente qual
-            # ramo usar, evitando essa ambiguidade.
+            
             self._cp_specify_phase(iphase_liquid)
             self._cp_update(PQ_INPUTS, P, 0.0)
             T_sat_l = self._cp_T()
-            self._cp_update(PT_INPUTS, P, T_sat_l-1e-4)
+            self._cp_update(PT_INPUTS, P, T_sat_l-1e-4) #pra não dar erro de ele pegar propriedades do lado errado do domo. Só é necessário com BICUBIC
             a_liq = self._cp_speed_sound()
             rho_liq = self._cp_rhomass()
             cp_liq = self._cp_cpmass()
@@ -571,8 +562,6 @@ cdef class Ejector:
             beta_vap = self._cp_isobaric_expansion_coefficient()
             v_vap = 1.0 / rho_vap
 
-            # libera a fase travada, senão os PRÓXIMOS updates() desse mesmo
-            # AbstractState (fora dessa função) ficam presos em iphase_gas
             self._cp_unspecify_phase()
 
             e_vap = Q * rho_liq / (Q * rho_liq + (1.0 - Q) * rho_vap)
@@ -737,4 +726,5 @@ cdef class Ejector:
     def nozzle_p_exit(self, P_p1): return self.nozzle_p_exit_c(P_p1)
     def aerodynamic_throat(self, P_const): return self.aerodynamic_throat_c(P_const)
     def shock(self, rho_4): return self.shock_c(rho_4)
+    def speed_sound(self, P, h): return self.sound_velocity_c(P, h)
 
