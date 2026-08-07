@@ -22,7 +22,7 @@ else:
 ext_modules = [
     Extension(
         "gsim",          # Nome do módulo final
-        sources=["gsim.pyx"], 
+        sources=["gsim_corrigido (2).pyx"], 
         language="c++",
         extra_compile_args=compile_args,
         extra_link_args=link_args,

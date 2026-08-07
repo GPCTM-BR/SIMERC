@@ -15,6 +15,9 @@ cdef int HmassP_INPUTS = CP.HmassP_INPUTS
 cdef int PSmass_INPUTS = CP.PSmass_INPUTS
 cdef int PQ_INPUTS = CP.PQ_INPUTS
 cdef int PT_INPUTS = CP.PT_INPUTS
+cdef int iphase_liquid = CP.iphase_liquid
+cdef int iphase_gas = CP.iphase_gas
+cdef int iphase_twophase = CP.iphase_twophase
 
 # =============================================================================
 # CLASS: MATERIAL STREAM
@@ -41,6 +44,7 @@ cdef class MaterialStream:
         self.Q = 0.0
         self.rho = 0.0
         
+        # igual na versão pyhton pura, pode ser str ou AbstractState
         if isinstance(fluid, str):
             try:
                 if bicubic:
@@ -102,6 +106,7 @@ cdef class Pump:
         self.mass_flow = inlet_stream.mass_flow 
         self.isentropic_efficiency = 0.75
 
+        # 2. CAPTURA DOS ATALHOS NA INICIALIZAÇÃO
         self._cp_update = self.fluid.update
         self._cp_hmass = self.fluid.hmass
         self._cp_smass = self.fluid.smass
@@ -163,6 +168,7 @@ cdef class Valve:
         self.h_1 = inlet_stream.h
         self.P_1 = inlet_stream.p
 
+        # 2. CAPTURA DOS ATALHOS LENTA (PROCURA APENAS UMA VEZ)
         self._cp_update = self.fluid.update
         self._cp_T = self.fluid.T
         self._cp_hmass = self.fluid.hmass
@@ -273,12 +279,21 @@ cdef class Ejector:
     cdef object _cp_Q
     cdef object _cp_cpmass
     cdef object _cp_isobaric_expansion_coefficient
+    cdef object _cp_phase
+    cdef object _cp_specify_phase
+    cdef object _cp_unspecify_phase
+
 
     # =========================================================================
     # DECLARAÇÃO ESTÁTICA DE TIPOS
     # =========================================================================
     cdef public double Pt_tol, Pp1_tol, Pconst_tol, rho4_tol, P5_tol
     cdef public int max_iter_Pt, max_iter_Pp1, max_iter_Pconst, max_iter_rho4, max_iter_P5
+
+    # ====== DIAGNÓSTICO DE CONVERGÊNCIA DE CADA LAÇO SECANTE ======
+    cdef public bint converged_Pt, converged_Pp1, converged_Pconst, converged_rho4, converged_P5
+    cdef public int iter_Pt, iter_Pp1, iter_Pconst, iter_rho4, iter_P5
+    cdef public double residual_Pt, residual_Pp1, residual_Pconst, residual_rho4, residual_P5
     
     cdef public double P_p0, s_p0, h_p0, rho_p0
     cdef public double P_s0, s_s0, h_s0, rho_s0
@@ -297,6 +312,8 @@ cdef class Ejector:
     cdef public double h_5, h_5_is
     
     cdef public double entrainment_ratio, Pd_crit, P_lift_ratio
+    cdef public bint converged           # AND dos 5 converged_X individuais
+    cdef public double max_residual      # maior dos 5 residuos, em valor absoluto (unidades misturadas, só p/ triagem)
     
     cdef public object fluid
     cdef public MaterialStream primary_inlet_stream
@@ -359,6 +376,9 @@ cdef class Ejector:
         self._cp_Q = self.fluid.Q
         self._cp_cpmass = self.fluid.cpmass
         self._cp_isobaric_expansion_coefficient = self.fluid.isobaric_expansion_coefficient
+        self._cp_phase = self.fluid.phase
+        self._cp_specify_phase = self.fluid.specify_phase
+        self._cp_unspecify_phase = self.fluid.unspecify_phase
 
     cpdef void set_dimensions(self, str dimension, double value_t, double value_p1, double value_const):
         self.dimension = dimension
@@ -398,6 +418,14 @@ cdef class Ejector:
     # =========================================================================
     #P.S: eu screvi uma secante para cada um porque ai eu não preciso passar a função, o que iria requerer uma passagem pelo python
     #(do jeito que tá dá pra ver no annotate que tá tudo branquinho, só o except * passa pelo python)
+    # NOTA: critério de convergência é o RESÍDUO real fabs(f1), não fabs(f1-f0).
+    # fabs(f1-f0) só mede se o secante parou de se mexer entre iterações — o que
+    # pode acontecer por estagnação (f0≈f1 sem nenhum dos dois estar perto de
+    # zero), "convergindo" numericamente sem ter achado a raiz de verdade.
+    # Ao final, converged_X/iter_X/residual_X ficam registrados como atributos
+    # públicos, e uma exceção é levantada se o laço estourou max_iter (ou
+    # estagnou) sem satisfazer a tolerância — em vez de devolver silenciosamente
+    # o valor da última iteração como se fosse a resposta certa.
     cdef double _secant_P_t(self, double guess) except *:
         cdef double P0 = guess
         cdef double P1 = guess * 0.99
@@ -405,14 +433,19 @@ cdef class Ejector:
         cdef double f1 = self.nozzle_p_throat_c(P1)
         cdef int i = 0
         cdef double P_next
-        while fabs(f1 - f0) > self.Pt_tol and i < self.max_iter_Pt:
-            if fabs(f1 - f0) < 1e-12: #acabou que isso ficou redundante, era pra evitar a divisão por zero na linha seguinte
-                break                 #mas a condição do while ja faz isso, mas como tá funcionando eu não vou mexer kkkk
+        while fabs(f1) > self.Pt_tol and i < self.max_iter_Pt:
+            if fabs(f1 - f0) < 1e-14:  # denominador ~0: parou de se mexer sem convergir -> estagnação real
+                break
             P_next = P1 - f1 * (P1 - P0) / (f1 - f0)
             P0 = P1; f0 = f1
             P1 = P_next
             f1 = self.nozzle_p_throat_c(P1)
             i += 1
+        self.iter_Pt = i
+        self.residual_Pt = fabs(f1)
+        self.converged_Pt = self.residual_Pt <= self.Pt_tol
+        # sem raise: fica registrado em converged_Pt/iter_Pt/residual_Pt pra
+        # ser avaliado depois (ex.: como coluna no batch), sem abortar a simulação
         return P1
 
     cdef double _secant_P_p1(self, double guess) except *:
@@ -422,14 +455,17 @@ cdef class Ejector:
         cdef double f1 = self.nozzle_p_exit_c(P1)
         cdef int i = 0
         cdef double P_next
-        while fabs(f1 - f0) > self.Pp1_tol and i < self.max_iter_Pp1:
-            if fabs(f1 - f0) < 1e-12:
+        while fabs(f1) > self.Pp1_tol and i < self.max_iter_Pp1:
+            if fabs(f1 - f0) < 1e-14:
                 break
             P_next = P1 - f1 * (P1 - P0) / (f1 - f0)
             P0 = P1; f0 = f1
             P1 = P_next
             f1 = self.nozzle_p_exit_c(P1)
             i += 1
+        self.iter_Pp1 = i
+        self.residual_Pp1 = fabs(f1)
+        self.converged_Pp1 = self.residual_Pp1 <= self.Pp1_tol
         return P1
 
     cdef double _secant_P_const(self, double guess) except *:
@@ -439,14 +475,17 @@ cdef class Ejector:
         cdef double f1 = self.aerodynamic_throat_c(P1)
         cdef int i = 0
         cdef double P_next
-        while fabs(f1 - f0) > self.Pconst_tol and i < self.max_iter_Pconst:
-            if fabs(f1 - f0) < 1e-12:
-                    break
+        while fabs(f1) > self.Pconst_tol and i < self.max_iter_Pconst:
+            if fabs(f1 - f0) < 1e-14:
+                break
             P_next = P1 - f1 * (P1 - P0) / (f1 - f0)
             P0 = P1; f0 = f1
             P1 = P_next
             f1 = self.aerodynamic_throat_c(P1)
             i += 1
+        self.iter_Pconst = i
+        self.residual_Pconst = fabs(f1)
+        self.converged_Pconst = self.residual_Pconst <= self.Pconst_tol
         return P1
 
     cdef double _secant_rho_4(self, double guess) except *:
@@ -456,14 +495,17 @@ cdef class Ejector:
         cdef double f1 = self.shock_c(x1)
         cdef int i = 0
         cdef double x_next
-        while fabs(f1 - f0) > self.rho4_tol and i < self.max_iter_rho4:
-            if fabs(f1 - f0) < 1e-12:
+        while fabs(f1) > self.rho4_tol and i < self.max_iter_rho4:
+            if fabs(f1 - f0) < 1e-14:
                 break
             x_next = x1 - f1 * (x1 - x0) / (f1 - f0)
             x0 = x1; f0 = f1
             x1 = x_next
             f1 = self.shock_c(x1)
             i += 1
+        self.iter_rho4 = i
+        self.residual_rho4 = fabs(f1)
+        self.converged_rho4 = self.residual_rho4 <= self.rho4_tol
         return x1
 
     cdef double _secant_P_5(self, double guess) except *:
@@ -473,14 +515,17 @@ cdef class Ejector:
         cdef double f1 = self.diffuser_pressure_c(P1)
         cdef int i = 0
         cdef double P_next
-        while fabs(f1 - f0) > self.P5_tol and i < self.max_iter_P5:
-            if fabs(f1 - f0) < 1e-12:
+        while fabs(f1) > self.P5_tol and i < self.max_iter_P5:
+            if fabs(f1 - f0) < 1e-14:
                 break
             P_next = P1 - f1 * (P1 - P0) / (f1 - f0)
             P0 = P1; f0 = f1
             P1 = P_next
             f1 = self.diffuser_pressure_c(P1)
             i += 1
+        self.iter_P5 = i
+        self.residual_P5 = fabs(f1)
+        self.converged_P5 = self.residual_P5 <= self.P5_tol
         return P1
 
     # =========================================================================
@@ -489,30 +534,46 @@ cdef class Ejector:
     # =========================================================================
     cdef double sound_velocity_c(self, double P, double h) except *:
         self._cp_update(HmassP_INPUTS, h, P)
-        cdef double a, Q, T, rho, a_liq, rho_liq, cp_liq, beta_liq, v_liq
+        cdef double a, Q, T, rho, a_liq, rho_liq, cp_liq, beta_liq, v_liq, T_sat_v, T_sat_l
         cdef double a_vap, rho_vap, cp_vap, beta_vap, v_vap, e_vap, e_liq
         cdef double CP_liq, CP_vap, tau_liq, tau_vap, a_w
 
-        try:
+        if self._cp_phase() != iphase_twophase:
             a = self._cp_speed_sound()
-        except Exception:
+        else:
             Q = self._cp_Q()
             T = self._cp_T()
             rho = self._cp_rhomass()
 
+            # ATENÇÃO: perto do domo, backends tabulares (BICUBIC&HEOS) podem
+            # resolver o flash PT no ramo ERRADO da tabela (ex.: cair no ramo
+            # líquido ao pedir um ponto a T_sat_v+1e-4, que deveria ser vapor),
+            # retornando propriedades absurdas (rho, cp negativo, a=nan) sem
+            # lançar exceção nenhuma. specify_phase trava explicitamente qual
+            # ramo usar, evitando essa ambiguidade.
+            self._cp_specify_phase(iphase_liquid)
             self._cp_update(PQ_INPUTS, P, 0.0)
+            T_sat_l = self._cp_T()
+            self._cp_update(PT_INPUTS, P, T_sat_l-1e-4)
             a_liq = self._cp_speed_sound()
             rho_liq = self._cp_rhomass()
             cp_liq = self._cp_cpmass()
             beta_liq = self._cp_isobaric_expansion_coefficient()
             v_liq = 1.0 / rho_liq
 
+            self._cp_specify_phase(iphase_gas)
             self._cp_update(PQ_INPUTS, P, 1.0)
+            T_sat_v = self._cp_T()
+            self._cp_update(PT_INPUTS, P, T_sat_v+1e-4)
             a_vap = self._cp_speed_sound()
             rho_vap = self._cp_rhomass()
             cp_vap = self._cp_cpmass()
             beta_vap = self._cp_isobaric_expansion_coefficient()
             v_vap = 1.0 / rho_vap
+
+            # libera a fase travada, senão os PRÓXIMOS updates() desse mesmo
+            # AbstractState (fora dessa função) ficam presos em iphase_gas
+            self._cp_unspecify_phase()
 
             e_vap = Q * rho_liq / (Q * rho_liq + (1.0 - Q) * rho_vap)
             e_liq = 1.0 - e_vap
@@ -649,6 +710,14 @@ cdef class Ejector:
         self.Pd_crit = self.P_5
         self.P_lift_ratio = self.Pd_crit / self.P_s0
 
+        self.converged = (self.converged_Pt and self.converged_Pp1 and
+                           self.converged_Pconst and self.converged_rho4 and self.converged_P5)
+        self.max_residual = self.residual_Pt
+        if self.residual_Pp1 > self.max_residual: self.max_residual = self.residual_Pp1
+        if self.residual_Pconst > self.max_residual: self.max_residual = self.residual_Pconst
+        if self.residual_rho4 > self.max_residual: self.max_residual = self.residual_rho4
+        if self.residual_P5 > self.max_residual: self.max_residual = self.residual_P5
+
     cpdef void validate(self):
         conditions = [
             (self.P_s0 < self.P_p0, "P_s0 > P_p0"),
@@ -663,9 +732,9 @@ cdef class Ejector:
             if not cond:
                 raise ValueError(f'Invalid Result: {erro_msg}')
 
-    # Wrappers para uso manual
+    # Wrappers para uso manual caso o usuário queira chamar do Python
     def nozzle_p_throat(self, P_t): return self.nozzle_p_throat_c(P_t)
     def nozzle_p_exit(self, P_p1): return self.nozzle_p_exit_c(P_p1)
     def aerodynamic_throat(self, P_const): return self.aerodynamic_throat_c(P_const)
     def shock(self, rho_4): return self.shock_c(rho_4)
-    def sound_velocity(self, P, h): return self.sound_velocity_c(P, h)
+

@@ -16,9 +16,6 @@ import xlsxwriter
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-#Mensagem do DEV:
-#Por favor não julgue o código, eu nunca tinha programado algo assim, o único programa com GUI que eu programei antes foi uma calculadora. Eu sei que tá uma bagunça :(
-
 def obter_caminho_recurso(caminho_relativo):
     try:
         # O PyInstaller cria uma pasta temporária e armazena o caminho em _MEIPASS
@@ -33,7 +30,6 @@ def _write_csv_file(file_path, columns, rows):
         writer = csv.writer(csvfile)
         writer.writerow(columns)
         writer.writerows(rows)
-
 
 def _write_xlsx_file(file_path, columns, rows):
     workbook = xlsxwriter.Workbook(file_path, {"constant_memory": True})
@@ -67,18 +63,18 @@ def _write_parquet_file(file_path, columns, rows, float_dtype=None):
     tabela = pa.Table.from_arrays(arrays, names=columns)
     pq.write_table(tabela, file_path, compression="zstd", compression_level=1)
 
-#Caro Avaliador do meu TCC, ESSA é a função "principal", que realmente faz o cálculo do ciclo, se quiser avaliar o código pra ver se tá certo, é isso aqui que é pra ver
 def ERC(fluid,
         p_eta,
         g_flash, g_par1, g_par2, g_eta, 
         c_flash, c_par1, c_par2, c_eta,
         e_flash, e_par1, e_par2, e_eta,
         dt, dp1, dconst, eta_t, eta_m, eta_d, phi_m, psi,
-        batch=False, max_iter = [], tol = [], *batch_param):
+        batch=False, max_iter = [], tol = [], initial_guess = [], *batch_param):
 
     if g_flash != "PQ":
         g_par1, g_par2 = g_par2, g_par1
 
+    
     if c_flash != "PQ":
         c_par1, c_par2 = c_par2, c_par1
 
@@ -108,6 +104,8 @@ def ERC(fluid,
         ejector.max_iter_Pt, ejector.max_iter_Pp1, ejector.max_iter_Pconst, ejector.max_iter_rho4, ejector.max_iter_P5 = max_iter
     if tol != []:
         ejector.Pt_tol, ejector.Pp1_tol, ejector.Pconst_tol, ejector.rho4_tol, ejector.P5_tol = tol
+    if initial_guess != []:
+        Pt_guess, Pp1_guess, Pconst_guess, rho4_guess = initial_guess
     generator = HeaterCooler(stream7, stream1, fluid)
     condenser = HeaterCooler(stream3, stream4, fluid)
     evaporator = HeaterCooler(stream8, stream2, fluid)
@@ -141,7 +139,7 @@ def ERC(fluid,
     ejector.set_dimensions("d", dt, dp1, dconst)
     ejector.set_efficiencies(eta_t, eta_m, eta_d, phi_m, psi)
     if batch:
-        ejector.calculate()
+        ejector.calculate(Pt_guess, Pp1_guess, Pconst_guess, rho4_guess)
     else:
         try:
             ejector.calculate()
@@ -212,6 +210,7 @@ def ERC(fluid,
     #retorno das respostas
     if batch:
         batch_param_list = list(batch_param)
+        near_result = [ejector.P_t, ejector.P_p1, ejector.P_const, ejector.rho_4]
         param_dict = {
             "COP": COP,
             "EJECTOR: Entrainment Ratio": entrainment_ratio,
@@ -293,12 +292,24 @@ def ERC(fluid,
             "PUMP: Outlet Pressure": stream7.p,
             "PUMP: Outlet Specific Enthalpy": stream7.h,
             "PUMP: Outlet Specific Entropy": stream7.s,
-            "PUMP: Outlet Density": stream7.rho
+            "PUMP: Outlet Density": stream7.rho,
+            "SOLVER: Converged (all)": float(ejector.converged),
+            "SOLVER: Max Residual": ejector.max_residual,
+            "SOLVER: Residual P_t": ejector.residual_Pt,
+            "SOLVER: Residual P_p1": ejector.residual_Pp1,
+            "SOLVER: Residual P_const": ejector.residual_Pconst,
+            "SOLVER: Residual rho_4": ejector.residual_rho4,
+            "SOLVER: Residual P_5": ejector.residual_P5,
+            "SOLVER: Iterations P_t": float(ejector.iter_Pt),
+            "SOLVER: Iterations P_p1": float(ejector.iter_Pp1),
+            "SOLVER: Iterations P_const": float(ejector.iter_Pconst),
+            "SOLVER: Iterations rho_4": float(ejector.iter_rho4),
+            "SOLVER: Iterations P_5": float(ejector.iter_P5),
         }
         solution_erc = {}
         for param in batch_param_list:
             solution_erc[param] = param_dict[param]
-        return solution_erc
+        return solution_erc, near_result
     else:
         solution_erc = {
             "stream1": stream1,
@@ -328,6 +339,7 @@ def _run_batch_chunk(rows, backend_name, caminho_tabelas, max_iter, tol):
     fluid = None
     fluid_name_atual = None
     resultados_chunk = []
+    chute = [0.0,0.0,0.0,0.0] #se for zero ele usa o chute interno
     for row in rows:
         try:
             fluid_name = row[0]
@@ -336,7 +348,12 @@ def _run_batch_chunk(rows, backend_name, caminho_tabelas, max_iter, tol):
                 fluid_name_atual = fluid_name
             rest = row[1:22]
             dependent_params = row[23:]
-            resultado = ERC(fluid, *rest, True, max_iter, tol, *dependent_params)
+            try:
+                resultado, near_result = ERC(fluid, *rest, True, max_iter, tol, list(chute), *dependent_params)
+                chute = near_result
+            except Exception:
+                chute = [0.0,0.0,0.0,0.0]
+                resultado, near_result = ERC(fluid, *rest, True, max_iter, tol, list(chute), *dependent_params)
             resultados_chunk.append(resultado)
         except Exception as exc:
             resultados_chunk.append({"error": str(exc)})
@@ -1351,11 +1368,17 @@ async def main(page: ft.Page):
                         break
 
                     chunk_result = []
+                    chute = [0.0,0.0,0.0,0.0]
                     for row in chunk:
                         try:
                             rest = row[1:22]
                             dependent_params = row[23:]
-                            resultado = ERC(fluid, *rest, True, max_iter, tol, *dependent_params)
+                            try:
+                                resultado, near_result = ERC(fluid, *rest, True, max_iter, tol, list(chute), *dependent_params)
+                                chute = near_result
+                            except Exception: 
+                                chute = [0.0,0.0,0.0,0.0]
+                                resultado, near_result = ERC(fluid, *rest, True, max_iter, tol, list(chute), *dependent_params)
                             chunk_result.append(resultado)
                         except Exception as exc:
                             chunk_result.append({"error": str(exc)})
@@ -2592,6 +2615,11 @@ async def main(page: ft.Page):
                      "PUMP: Inlet Specific Enthalpy", "PUMP: Inlet Specific Entropy", "PUMP: Inlet Density",
                      "PUMP: Outlet Temperature", "PUMP: Outlet Pressure",
                      "PUMP: Outlet Specific Enthalpy", "PUMP: Outlet Specific Entropy", "PUMP: Outlet Density",
+                     "SOLVER: Converged (all)", "SOLVER: Max Residual",
+                     "SOLVER: Residual P_t", "SOLVER: Residual P_p1", "SOLVER: Residual P_const",
+                     "SOLVER: Residual rho_4", "SOLVER: Residual P_5",
+                     "SOLVER: Iterations P_t", "SOLVER: Iterations P_p1", "SOLVER: Iterations P_const",
+                     "SOLVER: Iterations rho_4", "SOLVER: Iterations P_5",
                      ]
         param_dropdown = ft.Dropdown(
             expand=2,
