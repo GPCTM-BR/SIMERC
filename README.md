@@ -16,11 +16,11 @@ Among the features of this program are:
 - Use of [CoolProp](https://coolprop.org/), which provides accurate results for most refrigerant fluids
 - Two [CoolProp](https://coolprop.org/) backends were implemented: HEOS (default) and [BICUBIC&HEOS](https://coolprop.org/coolprop/Tabular.html) (for faster calculations)
 - The code responsible for the mathematical part of the simulation was written in [Cython](https://cython.org/), greatly improving the program's performance
-- The user can run batch simulations using parallel processing, useful for cases with many simulations
+- The user can run batch simulations using **Parallel Processing**, useful for cases with many simulations
 - Batch Sim results can be viewed within the program itself, and exported as csv, xlsx, or parquet
 - The parameters $\phi_m$ and $\psi$ can be expressions as functions of _Ar_ and _Pr_, as in the work of [Cardemil and Colle (2012)](https://doi.org/10.1016/j.enconman.2012.05.009).
   
-Example of results obtained for R134a, using the BICUBIC backend with 8 million simulations (the graphical visualization was made using [Blender](https://www.blender.org/), based on [this data](https://drive.google.com/drive/folders/1IA9rttPIPdTGxCPez936W97WVgaiG7nm?usp=sharing) exported by SIMERC):
+Example of results obtained for R134a, using the BICUBIC backend with 1 million simulations (the graphical visualization was made using [Blender](https://www.blender.org/), based on [this data](https://drive.google.com/file/d/1KUZm7uW-DiA2fNjeJiscFHEsmISGNYLj/view?usp=drive_link) exported by SIMERC):
 ![Example of results](docstrings/images/R134a%20-%201%20Milion%20Simulations.webp)
   
 Other program screenshots:
