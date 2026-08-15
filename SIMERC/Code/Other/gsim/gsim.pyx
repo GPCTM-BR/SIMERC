@@ -290,7 +290,7 @@ cdef class Ejector:
     cdef public double Pt_tol, Pp1_tol, Pconst_tol, rho4_tol, P5_tol
     cdef public int max_iter_Pt, max_iter_Pp1, max_iter_Pconst, max_iter_rho4, max_iter_P5
 
-    # ====== DIAGNÓSTICO DE CONVERGÊNCIA DE CADA LAÇO SECANTE ======
+    # ======CONVERGÊNCIA DE CADA LAÇO SECANTE ======
     cdef public bint converged_Pt, converged_Pp1, converged_Pconst, converged_rho4, converged_P5
     cdef public int iter_Pt, iter_Pp1, iter_Pconst, iter_rho4, iter_P5
     cdef public double residual_Pt, residual_Pp1, residual_Pconst, residual_rho4, residual_P5
@@ -432,7 +432,7 @@ cdef class Ejector:
         cdef int i = 0
         cdef double P_next
         while fabs(f1) > self.Pt_tol and i < self.max_iter_Pt:
-            if fabs(f1 - f0) < 1e-14:  # denominador ~0: parou de se mexer sem convergir -> estagnação real
+            if fabs(f1 - f0) < 1e-14:  # denominador ~0: parou de se mexer
                 break
             P_next = P1 - f1 * (P1 - P0) / (f1 - f0)
             P0 = P1; f0 = f1
