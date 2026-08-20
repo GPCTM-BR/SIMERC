@@ -121,6 +121,7 @@ def ERC(fluid,
     #calculando Ar e Pr (caso os coeficientes do ejetor use) e eval no phi_m e psi
     Ar = (dconst/dt)**2
     Pr = stream2.p/stream1.p
+    
     try:
         phi_m = float(eval(phi_m))
     except:
@@ -153,6 +154,7 @@ def ERC(fluid,
     m = ejector.m
     entrainment_ratio= ejector.entrainment_ratio
     Pd_crit = ejector.Pd_crit
+    
     P_lift_ratio = stream4.p/stream2.p
 
     #vverificando se está na região crítica
@@ -377,6 +379,7 @@ async def main(page: ft.Page):
     page.fonts = {"Open Sans Regular": "/fonts/OpenSans-Regular.ttf",
                   "Open Sans Light": "/fonts/OpenSans-Light.ttf"}
     page.theme = ft.Theme(font_family='Open Sans Light')
+    page.theme_mode = ft.ThemeMode.DARK
     page.title = "SIMERC"
     page.window.icon ="icon.ico"
 
@@ -554,7 +557,8 @@ async def main(page: ft.Page):
     batch_parallel_checkbox = ft.Checkbox("Run batch in parallel", value=False,
                                           tooltip=tooltip_msg("Defines whether Batch Sim will use parallel processing. Useful when there are many simulations."),
                                           label_style= ft.TextStyle(font_family="Opens Sans Light", letter_spacing=1.5, color="#B7C3C1"),
-                                          active_color= "#B6FF57"
+                                          active_color= "#B6FF57",
+                                          check_color="#011314"
                                           )
     
     def reset_settings(e):
@@ -2150,7 +2154,7 @@ async def main(page: ft.Page):
         return texto
 
     #======= BOMBA PAINEL ESQUERDO ==============
-    pump_description_text = ft.Text(spans=[ft.TextSpan('A device that takes the liquid coming out of the condenser to a high pressure. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12)),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
+    pump_description_text = ft.Text(spans=[ft.TextSpan('A device that takes the liquid coming out of the condenser to a high pressure. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12, color = "#FFFFFF")),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
     pump_description = ft.Column(controls=[
         ft.Text("DESCRIPTION", size=10, color="#677E80", style=ft.TextStyle(font_family='Open Sans Regular'), margin=ft.Margin.only(top=15)),
         pump_description_text
@@ -2241,7 +2245,7 @@ async def main(page: ft.Page):
         tooltip = tooltip_msg("Select the calculation method"),
         on_select= update_generator_parameters
     )
-    generator_description_text = ft.Text(spans=[ft.TextSpan('A heater that produces high-pressure vapor that acts as a motive flow for the ejector. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12)),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
+    generator_description_text = ft.Text(spans=[ft.TextSpan('A heater that produces high-pressure vapor that acts as a motive flow for the ejector. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12, color = "#FFFFFF")),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
     generator_description = ft.Column(controls=[
         ft.Text("DESCRIPTION", size=10, color="#677E80", style=ft.TextStyle(font_family='Open Sans Regular'), margin=ft.Margin.only(top=15)),
         generator_description_text
@@ -2290,7 +2294,7 @@ async def main(page: ft.Page):
     )
 
     #======= EJETOR PAINEL ESQUERDO ==============
-    ejector_description_text = ft.Text(spans=[ft.TextSpan('A CPM ejector model. It uses the modeling developed by Cardemil and Colle (2012). ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12)),ft.TextSpan("[See here]",url ="https://doi.org/10.1016/j.enconman.2012.05.009", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
+    ejector_description_text = ft.Text(spans=[ft.TextSpan('A CPM ejector model. It uses the modeling developed by Cardemil and Colle (2012). ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12, color = "#FFFFFF")),ft.TextSpan("[See here]",url ="https://doi.org/10.1016/j.enconman.2012.05.009", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
     ejector_description = ft.Column(controls=[
         ft.Text("DESCRIPTION", size=10, color="#677E80", style=ft.TextStyle(font_family='Open Sans Regular'), margin=ft.Margin.only(top=15)),
         ejector_description_text
@@ -2381,7 +2385,7 @@ async def main(page: ft.Page):
         tooltip = tooltip_msg("Select the calculation method"),
         on_select= update_condenser_parameters
     )
-    condenser_description_text = ft.Text(spans=[ft.TextSpan('A cooler that works by condensing the fluid that comes out of the ejector. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12)),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
+    condenser_description_text = ft.Text(spans=[ft.TextSpan('A cooler that works by condensing the fluid that comes out of the ejector. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12, color = "#FFFFFF")),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
     condenser_description = ft.Column(controls=[
         ft.Text("DESCRIPTION", size=10, color="#677E80", style=ft.TextStyle(font_family='Open Sans Regular'), margin=ft.Margin.only(top=15)),
         condenser_description_text
@@ -2463,7 +2467,7 @@ async def main(page: ft.Page):
         tooltip = tooltip_msg("Select the calculation method"),
         on_select= update_evaporator_parameters
     )
-    evaporator_description_text = ft.Text(spans=[ft.TextSpan('A heater that produces low-pressure vapor, which acts as entrainment flow for the ejector. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12)),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
+    evaporator_description_text = ft.Text(spans=[ft.TextSpan('A heater that produces low-pressure vapor, which acts as entrainment flow for the ejector. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12, color = "#FFFFFF")),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
     evaporator_description = ft.Column(controls=[
         ft.Text("DESCRIPTION", size=10, color="#677E80", style=ft.TextStyle(font_family='Open Sans Regular'), margin=ft.Margin.only(top=15)),
         evaporator_description_text
@@ -2512,7 +2516,7 @@ async def main(page: ft.Page):
     )
 
     #======= VÁLVULA PAINEL ESQUERDO ==============
-    expansion_valve_description_text = ft.Text(spans=[ft.TextSpan('A throttling device that reduces the pressure and temperature of the working fluid. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12)),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
+    expansion_valve_description_text = ft.Text(spans=[ft.TextSpan('A throttling device that reduces the pressure and temperature of the working fluid. ',style=ft.TextStyle(italic=True, letter_spacing=1.5, size = 12, color = "#FFFFFF")),ft.TextSpan("[See here]",url ="https://github.com/GPCTM-BR/SIMERC/blob/f70d33508b99be33ee1ecaa04b4c895f418e602d/docstrings/images/System%20Components%20Cards.pdf", style=ft.TextStyle(size=12, italic=False, color="#B6FF57"))])
     expansion_valve_description = ft.Column(controls=[
         ft.Text("DESCRIPTION", size=10, color="#677E80", style=ft.TextStyle(font_family='Open Sans Regular'), margin=ft.Margin.only(top=15)),
         expansion_valve_description_text
