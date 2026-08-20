@@ -17,6 +17,7 @@ Among the features of this program are:
 - Two [CoolProp](https://coolprop.org/) backends were implemented: HEOS (default) and [BICUBIC&HEOS](https://coolprop.org/coolprop/Tabular.html) (for faster calculations)
 - The code responsible for the mathematical part of the simulation was written in [Cython](https://cython.org/), greatly improving the program's performance
 - The user can run batch simulations using **Parallel Processing**, useful for cases with many simulations
+- Batch simulations use previous solutions as a starting point for new ones, reducing the number of iterations required and speeding up the simulation (***warm start***).
 - Batch Sim results can be viewed within the program itself, and exported as csv, xlsx, or parquet
 - The parameters $\phi_m$ and $\psi$ can be expressions as functions of _Ar_ and _Pr_, as in the work of [Cardemil and Colle (2012)](https://doi.org/10.1016/j.enconman.2012.05.009).
   
