@@ -22,7 +22,7 @@ Among the features of this program are:
 - The parameters $\phi_m$ and $\psi$ can be expressions as functions of _Ar_ and _Pr_, as in the work of [Cardemil and Colle (2012)](https://doi.org/10.1016/j.enconman.2012.05.009).
   
 Example of results obtained for R134a, using the BICUBIC backend with 8 million simulations (the graphical visualization was made using [Blender](https://www.blender.org/), based on [this data](https://drive.google.com/file/d/1KUZm7uW-DiA2fNjeJiscFHEsmISGNYLj/view?usp=drive_link) exported by SIMERC):
-![Example of results](docstrings/images/R134a%20-%208%20Million%20Simulations.webp)
+![Example of results](docstrings/images/R134a%208M%20FINAL.webp)
   
 Other program screenshots:
 ![Print 02 - Program GUI](docstrings/images/print2.png)
