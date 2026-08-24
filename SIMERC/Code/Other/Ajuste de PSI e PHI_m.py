@@ -6,15 +6,16 @@ from CoolProp import AbstractState
 import matplotlib.pyplot as plt
 import gsim
 
-fluido = "R134a"
+fluido = "R141b"
 backend = "BICUBIC&HEOS"
 
 df = pd.read_excel("Fluidos dados.xlsx", sheet_name = fluido)
 NUMERO_DE_PONTOS = len(df['Tp0'])
-FRACAO_CALIBRACAO = 1# 0.7
+FRACAO_CALIBRACAO = 1# quanto da base de dados será usado para calibração (o resto será usado para validação)
 SEED = 7 #numero inteiro usado para gerar a semente do random_state, garantindo que a amostra seja sempre a mesma (para que voce, pessoa que esta lendo, consiga reproduzir os resultados)
+EXPORT = False
 
-caso = 1 #caso 1: ajusta a equação pros dados experimentais
+caso = 2 #caso 1: ajusta a equação pros dados experimentais
          #caso 2: acha o valor de psi e phi que minimizam o erro entre os dados experimentais e os calculados (para analizar como se comportam frente a Pr e Ar)
 
 
@@ -22,22 +23,35 @@ NOMES_PARAM = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']  # nomes dos pa
 
 def phi_m_func(Ar, Pr, param):
     a, b, c, d, e, f, g, h, i, j = param
-    #return a + b * Ar  #forma antiga
-    return a + b * Ar + c * Pr + d * (Ar*Pr) #+ e * (Ar)**2  #forma nova
+    return a + b * Ar  #forma antiga
+    #return a + b * Ar + c * Pr + d * (Ar*Pr) #+ e * (Ar)**2  #forma alternativa 1
+    #x= a + b * Ar #+ c * Pr + d * (Ar*Pr) #forma alternativa 2
+    #return 1 / (1 + np.exp(-x)) #forma alternativa 2
     
 
 def psi_func(Ar, Pr, param):
     a, b, c, d, e, f, g, h, i, j = param
-    #return c / (Pr * Ar) + d  #forma antiga
-    return f + g * Ar + h * Pr + i * (Ar*Pr) #+ j * (Ar)**2  #forma nova
+    return c / (Pr * Ar) + d  #forma antiga
+    #return f + g * Ar + h * Pr + i * (Ar*Pr) #+ j * (Ar)**2  #forma alternativa 1
+    #x = f + g * Ar + h * Pr + i * (Ar*Pr) #forma alternativa 2
+    #return 1 / (1 + np.exp(-x)) #forma alternativa 2
 
 def formula_str(param):
     a, b, c, d, e, f, g, h, i, j = param
-    txt_psi = f"ψ =  {f} + {g} * Ar + {h} * Pr + {i} * (Ar * Pr)"
-    txt_phi = f"φₘ = {a} + {b} * Ar + {c} * Pr + {d} * (Ar * Pr)"
+    #txt_psi = f"ψ =  {f} + {g} * Ar + {h} * Pr + {i} * (Ar * Pr)"
+    #txt_phi = f"φₘ = {a} + {b} * Ar + {c} * Pr + {d} * (Ar * Pr)"
+    txt_psi = f"ψ =  {c:.5f} / (Pr * Ar) + {d:.5f}"
+    txt_phi = f"φₘ = {a:.5f} + {b:.5f} * Ar"
+    #txt_psi = f"ψ = 1 / (1 + exp(-({f} + {g} * Ar + {h} * Pr + {i} * (Ar * Pr))))"
+    #txt_phi = f"φₘ = 1 / (1 + exp(-({a} + {b} * Ar)))"
     return txt_psi, txt_phi
 
-
+def r_squared(y_exp, y_calc):
+    y_exp = np.asarray(y_exp, dtype=float)
+    y_calc = np.asarray(y_calc, dtype=float)
+    ss_res = np.sum((y_exp - y_calc) ** 2)
+    ss_tot = np.sum((y_exp - np.mean(y_exp)) ** 2)
+    return 1 - ss_res / ss_tot
 
 def pre_processar_dados(df_subset):
     #essa função cria vetores com os valores de P, h, s, Ar e Pr para cada ponto da planilha, usando o CoolProp
@@ -130,18 +144,18 @@ if caso == 1:
     def funcao_restricoes(param):
         phi_m = phi_m_func(Ar_c, Pr_c, param)
         psi = psi_func(Ar_c, Pr_c, param)
-        return np.concatenate((phi_m - 0.1, 0.99 - phi_m, psi - 0.1, 0.99 - psi))  # Restrições: 0.1 < phi_m < 0.99 e 0.1 < psi < 0.99
+        return np.concatenate((phi_m - 0, 1 - phi_m, psi - 0, 1 - psi))  # Restrições: 0 < phi_m < 1 e 0 < psi < 1
 
     chute = [0.9788, 0.0073, 0.046, 0.75, 0.75, 0.5, 0.25, 0.25, 0.25, 0.25]  
     #chute = [5, -6, 0.7, -0.5, 0.05, -7.5, 4, -0.5, -5.5, 1] 
     #chute = [0.8, 0.01, 1, -0.15, 1, 2, -0.2, -5.5, 1, 1]
-    #chute = [0.8, 0.01, 0.01, -0.15, 1, 2, -0.2, -5.5, 1, 1]
+    #chute = [7, 0.01, 0.01, 0.15, 1, 2, -0.2, -6, 5, 1]
     restricoes = {'type': 'ineq', 'fun': funcao_restricoes}
 
     #INICIO DO AJUSTE
 
     print("Iniciando Ajuste dos Parâmetros...")
-    #o método SLSQP é usado para otimização com restrições, SLSQP significa Sequential Least Squares Programming
+    #o método SLSQP é usado para otimização com restrições, SLSQP significa Sequential Least Squares Programming (tô usando ele pq ele aceita restrição de desigualdade)
     resultado = opt.minimize(funcao_objetivo, chute, method='SLSQP', constraints=restricoes, options={'maxiter': 300})
 
     if resultado.success:
@@ -172,12 +186,15 @@ if caso == 1:
             w_calc_calib[i] = ejetor.entrainment_ratio
             Pd_calc_calib[i] = ejetor.Pd_crit
 
+
             erro_w_calib[i] = (abs(ejetor.entrainment_ratio - w_exp_c[i])/ w_exp_c[i]) * 100
             erro_Pd_calib[i] = (abs(ejetor.Pd_crit - Pd_exp_c[i])/ Pd_exp_c[i]) * 100
 
             #print(f"Calibração {i+1:02d}: Erro Omega = {erro_w_calib[i]:.2f}% | Erro Pc* = {erro_Pd_calib[i]:.2f}%")
-            print(f"Tp0: {df_calib.loc[i, 'Tp0']:.2f} | Pp0: {df_calib.loc[i, 'Pp0']:.2f} | Ts0: {df_calib.loc[i, 'Ts0']:.2f} | Ps0: {df_calib.loc[i, 'Ps0']:.4f} | Ar: {Ar_c[i]:.4f} | Pr: {Pr_c[i]:.4f} | phi_m: {phi_m:.4f} | psi: {psi:.4f} | w_calc: {w_calc_calib[i]:.4f} | Pd_calc: {Pd_calc_calib[i]:.4f}")
+            print(f"Tp0: {df_calib.loc[i, 'Tp0']:.2f} | Pp0: {df_calib.loc[i, 'Pp0']:.2f} | Ts0: {df_calib.loc[i, 'Ts0']:.2f} | Ps0: {df_calib.loc[i, 'Ps0']:.4f} | w_exp: {w_exp_c[i]:.4f} | w_calc: {w_calc_calib[i]:.4f} | Pd_exp: {Pd_exp_c[i]:.4f} | Pd_calc: {Pd_calc_calib[i]:.4f} | Erro Omega: {erro_w_calib[i]:.2f}% | Erro Pc*: {erro_Pd_calib[i]:.2f}%")
 
+        R2_w_calib = r_squared(w_exp_c, w_calc_calib)
+        R2_Pd_calib = r_squared(Pd_exp_c, Pd_calc_calib)
 
         #Erros para os dados de validação, se houver
         if not df_valid.empty:
@@ -207,6 +224,10 @@ if caso == 1:
 
                 print(f"Validação {i+1:02d}: Erro Omega = {erro_w_valid[i]:.2f}% | Erro Pc* = {erro_Pd_valid[i]:.2f}%")
 
+            R2_w_valid = r_squared(w_exp_v, w_calc_valid)
+            R2_Pd_valid = r_squared(Pd_exp_v, Pd_calc_valid)
+
+        
 
         print("\n============================================================")
         print("                      RESUMO DOS ERROS                      ")
@@ -216,20 +237,24 @@ if caso == 1:
         print(f"   \tErro Mínimo: {np.min(erro_w_calib):.2f}%")
         print(f"   \tErro Máximo: {np.max(erro_w_calib):.2f}%")
         print(f"   \tErro Médio: {np.mean(erro_w_calib):.2f}%")
+        print(f"   \tR²: {R2_w_calib:.4f}")
         print("    Para a Pressão Crítica:")
         print(f"   \tErro Mínimo: {np.min(erro_Pd_calib):.2f}%")
         print(f"   \tErro Máximo: {np.max(erro_Pd_calib):.2f}%")
         print(f"   \tErro Médio: {np.mean(erro_Pd_calib):.2f}%")
+        print(f"   \tR²: {R2_Pd_calib:.4f}")
         if not df_valid.empty:
             print(f"\n-> VALIDAÇÃO ({TAMANHO_VALIDACAO} pontos ocultos):")
             print("    Para a Razão de Arraste:")
             print(f"   \tErro Mínimo: {np.min(erro_w_valid):.2f}%")
             print(f"   \tErro Máximo: {np.max(erro_w_valid):.2f}%")
             print(f"   \tErro Médio: {np.mean(erro_w_valid):.2f}%")
+            print(f"   \tR²: {R2_w_valid:.4f}")
             print("    Para a Pressão Crítica:")
             print(f"   \tErro Mínimo: {np.min(erro_Pd_valid):.2f}%")
             print(f"   \tErro Máximo: {np.max(erro_Pd_valid):.2f}%")
             print(f"   \tErro Médio: {np.mean(erro_Pd_valid):.2f}%")
+            print(f"   \tR²: {R2_Pd_valid:.4f}")
         
         print("============================================================")
         print("\n============================================================")
@@ -239,8 +264,34 @@ if caso == 1:
         print(f"\n   {txt_psi}")
         print(f"   {txt_phi}\n")
         print(f"   Backend: {fluido.backend_name()}")
+        print(f"   Fluido: {fluido.name()}")
         print("============================================================\n")
+        # ============================================================
+        #   EXPORTAR RESULTADOS PARA EXCEL
+        # ============================================================
+        df_export_calib = df_calib.copy()
+        df_export_calib['Ar'] = Ar_c
+        df_export_calib['Pr'] = Pr_c
+        df_export_calib['w_calc'] = w_calc_calib
+        df_export_calib['Pd_calc'] = Pd_calc_calib
+        df_export_calib['erro_w_%'] = erro_w_calib
+        df_export_calib['erro_Pd_%'] = erro_Pd_calib
 
+        if EXPORT:
+            with pd.ExcelWriter('resultados_ajuste2.xlsx') as writer:
+                df_export_calib.to_excel(writer, sheet_name='calibracao', index=False)
+
+                if not df_valid.empty:
+                    df_export_valid = df_valid.copy()
+                    df_export_valid['Ar'] = Ar_v
+                    df_export_valid['Pr'] = Pr_v
+                    df_export_valid['w_calc'] = w_calc_valid
+                    df_export_valid['Pd_calc'] = Pd_calc_valid
+                    df_export_valid['erro_w_%'] = erro_w_valid
+                    df_export_valid['erro_Pd_%'] = erro_Pd_valid
+                    df_export_valid.to_excel(writer, sheet_name='validacao', index=False)
+
+            print("\nResultados exportados para 'resultados_ajuste2.xlsx'")
     else:
         print("O ajuste não foi bem-sucedido. Tente outro chute inicial ou verifique os dados.")
 
@@ -271,7 +322,7 @@ elif caso == 2:
             erro_Pd = ((ejetor.Pd_crit - Pd_exp[i]) / Pd_exp[i])**2
             return erro_w + erro_Pd #quem eu quero zerar/minimizar
         except Exception:
-            return 10.0  # mesmo esquema de antes, se a conta der errado o erro sovbe
+            return 10.0  # se retornar 10 é pq deu erro
 
     def funcao_restricoes(param):
         phi_m, psi = param
@@ -295,7 +346,7 @@ elif caso == 2:
         else:
             print(f"Ponto {i+1:03d}: falhou -> {resultado.message}")
 
-    
+    # guarda tudo junto pra facilitar análise/plot depois
     df_resultado = df.copy()
     df_resultado['Ar'] = Ar
     df_resultado['Pr'] = Pr
