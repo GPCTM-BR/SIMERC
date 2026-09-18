@@ -431,6 +431,7 @@ class Ejector:
         return h_guess - self.h_5_is  
 
     def sound_velocity(self, P, h, fluid):
+        "TÁ ERRADO, OLHA O 'Notas.txt' !"
         fluid.update(CP.HmassP_INPUTS, h, P)
         try:
             a = fluid.speed_sound()

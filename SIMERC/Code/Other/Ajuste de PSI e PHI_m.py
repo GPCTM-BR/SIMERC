@@ -6,7 +6,7 @@ from CoolProp import AbstractState
 import matplotlib.pyplot as plt
 import gsim
 
-fluido = "R141b"
+fluido = "R1234ze(E)"
 backend = "BICUBIC&HEOS"
 
 df = pd.read_excel("Fluidos dados.xlsx", sheet_name = fluido)
@@ -15,7 +15,7 @@ FRACAO_CALIBRACAO = 1# quanto da base de dados será usado para calibração (o 
 SEED = 7 #numero inteiro usado para gerar a semente do random_state, garantindo que a amostra seja sempre a mesma (para que voce, pessoa que esta lendo, consiga reproduzir os resultados)
 EXPORT = False
 
-caso = 2 #caso 1: ajusta a equação pros dados experimentais
+caso = 1 #caso 1: ajusta a equação pros dados experimentais
          #caso 2: acha o valor de psi e phi que minimizam o erro entre os dados experimentais e os calculados (para analizar como se comportam frente a Pr e Ar)
 
 
@@ -40,8 +40,8 @@ def formula_str(param):
     a, b, c, d, e, f, g, h, i, j = param
     #txt_psi = f"ψ =  {f} + {g} * Ar + {h} * Pr + {i} * (Ar * Pr)"
     #txt_phi = f"φₘ = {a} + {b} * Ar + {c} * Pr + {d} * (Ar * Pr)"
-    txt_psi = f"ψ =  {c:.5f} / (Pr * Ar) + {d:.5f}"
-    txt_phi = f"φₘ = {a:.5f} + {b:.5f} * Ar"
+    txt_psi = f"ψ =  {c:.6f} / (Pr * Ar) + {d:.6f}"
+    txt_phi = f"φₘ = {a:.6f} + {b:.6f} * Ar"
     #txt_psi = f"ψ = 1 / (1 + exp(-({f} + {g} * Ar + {h} * Pr + {i} * (Ar * Pr))))"
     #txt_phi = f"φₘ = 1 / (1 + exp(-({a} + {b} * Ar)))"
     return txt_psi, txt_phi
@@ -73,10 +73,10 @@ def pre_processar_dados(df_subset):
     def calcular_h_s(T, P):
         fluido.update(CP.QT_INPUTS, 1, T)
         P_sat = fluido.p()
-        if abs(P - P_sat) / P_sat < TOL_SATURACAO:
+        if abs(P - P_sat) / P_sat < TOL_SATURACAO: #m outras palavras, está na saturação? se tiver, aceita a avaliaçao em T,Q=1
             return fluido.hmass(), fluido.smass()   
         else:
-            fluido.update(CP.PT_INPUTS, P, T)
+            fluido.update(CP.PT_INPUTS, P, T) #se nao tiver na saturação, ai sim faz a avaliação em T,P
             return fluido.hmass(), fluido.smass()
  
     for i in range(N):
@@ -98,11 +98,14 @@ def pre_processar_dados(df_subset):
 if caso == 1:
     TAMANHO_CALIBRACAO = round(NUMERO_DE_PONTOS*FRACAO_CALIBRACAO) 
     TAMANHO_VALIDACAO = NUMERO_DE_PONTOS - TAMANHO_CALIBRACAO 
-    
 
-    df_calib = df.sample(n=TAMANHO_CALIBRACAO, random_state=SEED)
-    df_valid = df.drop(df_calib.index).reset_index(drop=True)
-    df_calib = df_calib.reset_index(drop=True)
+    if FRACAO_CALIBRACAO == 1:
+        df_calib = df.copy()
+        df_valid = df.drop(df_calib.index).reset_index(drop=True)
+    else:
+        df_calib = df.sample(n=TAMANHO_CALIBRACAO, random_state=SEED)
+        df_valid = df.drop(df_calib.index).reset_index(drop=True)
+        df_calib = df_calib.reset_index(drop=True)
 
     fluido = AbstractState(backend, fluido)
 
@@ -146,7 +149,7 @@ if caso == 1:
         psi = psi_func(Ar_c, Pr_c, param)
         return np.concatenate((phi_m - 0, 1 - phi_m, psi - 0, 1 - psi))  # Restrições: 0 < phi_m < 1 e 0 < psi < 1
 
-    chute = [0.9788, 0.0073, 0.046, 0.75, 0.75, 0.5, 0.25, 0.25, 0.25, 0.25]  
+    chute = [0.9788, 0.0073, 0.046, 0.75, 0.75, 0.5, 0.25, 0.25, 0.25, 0.25]   
     #chute = [5, -6, 0.7, -0.5, 0.05, -7.5, 4, -0.5, -5.5, 1] 
     #chute = [0.8, 0.01, 1, -0.15, 1, 2, -0.2, -5.5, 1, 1]
     #chute = [7, 0.01, 0.01, 0.15, 1, 2, -0.2, -6, 5, 1]
@@ -278,7 +281,7 @@ if caso == 1:
         df_export_calib['erro_Pd_%'] = erro_Pd_calib
 
         if EXPORT:
-            with pd.ExcelWriter('resultados_ajuste2.xlsx') as writer:
+            with pd.ExcelWriter(f'{fluido.name()}_ajuste_psi_phi.xlsx') as writer:
                 df_export_calib.to_excel(writer, sheet_name='calibracao', index=False)
 
                 if not df_valid.empty:
@@ -291,7 +294,7 @@ if caso == 1:
                     df_export_valid['erro_Pd_%'] = erro_Pd_valid
                     df_export_valid.to_excel(writer, sheet_name='validacao', index=False)
 
-            print("\nResultados exportados para 'resultados_ajuste2.xlsx'")
+            print(f"\nResultados exportados para '{fluido.name()}_ajuste_psi_phi.xlsx'")
     else:
         print("O ajuste não foi bem-sucedido. Tente outro chute inicial ou verifique os dados.")
 

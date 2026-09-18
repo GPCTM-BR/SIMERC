@@ -2,12 +2,9 @@ import bpy
 import numpy as np
 import pyarrow.parquet as pq
 
-#Rode esse código DENTRO do Blender, e certifique-se de mudar as colunas para as variaveis que você escolheu
 
 arquivo = r"CAMINHO PARA O ARQUIVO .parquet"
 
-
-#aqui estão as variáveis independentes (3 primeiras) e dependentes (resto) que eu escolhi observar. Troque pelas suas e depois reveja o resto do código (ou só usa as que eu usei)
 colunas = [
     "Condenser: Outlet Temperature (K)",
     "Generator: Outlet Temperature (K)",
@@ -81,13 +78,12 @@ for i, batch in enumerate(parquet_file.iter_batches(batch_size=chunk_size, colum
     lista_erros.append(erro_codigo_bloco)
     chunk_num = chunk[colunas].astype(np.float32).fillna(-1.0)
 
-    # Extracao das coordenadas (X, Y, Z) deste bloco
     x = chunk_num.iloc[:, 0].to_numpy()
     y = chunk_num.iloc[:, 1].to_numpy()
     z = chunk_num.iloc[:, 2].to_numpy()
     lista_coords.append(np.column_stack((x, y, z)))
 
-    # Armazena os dados numericos para os atributos do Blender
+
     for col in colunas:
         dicionario_atributos[col].append(chunk_num[col].to_numpy())
 
@@ -99,14 +95,13 @@ print("\nConsolidando matrizes de dados...")
 coords = np.vstack(lista_coords)
 erros_finais = np.concatenate(lista_erros)
 
-# Libera memória das listas temporárias
+
 del lista_coords
 del lista_erros
 
-# Normalização das coordenadas das linhas válidas
+
 mins = coords.min(axis=0)
 maxs = coords.max(axis=0)
-# Evita divisão por zero se o max for igual ao min
 maxs[maxs == mins] += 1e-6
 coords = (coords - mins) / (maxs - mins)
 

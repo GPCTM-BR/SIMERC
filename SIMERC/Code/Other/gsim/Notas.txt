@@ -1,0 +1,29 @@
+
+Cansei de escrever em inglês. Tem um erro no gsim_python.py !
+o bloco try/except deveria servir para identificar se o escoamento
+é monofásico (se for bifásico o fluid.speed_sound() levanta um erro).
+Porém não é isso que acontece!
+No backend HEOS funciona bunitinho, mas no BICUBIC por alguma razão o bloco do try não
+gera um erro, ele calcula alguma coisa ali, (pelo o que eu andei vendo em umas discussões no github,
+ele só considera bifásico se todos os pontos da interpolação estiverem do mesmo lado do domo,
+ou algo assim, não entendi direito pra falar a verdade). Mas enfim, bicubic dá problema. O código do Cython
+já corrigi isso, aqui eu não mexi afinal não to usando mais esse código. Eu deixei uma foto aqui nessa pasta 
+mostrando como o heos ficava diferente do bicubic. Depois da correção ficou tudo igual e bunitinho! :)
+Deixei umas fotos mostrando o BICUBIC antes e depois. Dá pra ver que depois do fix ele bate com o HEOS!
+
+    |
+    | translation
+    v
+
+There's a bug in `gsim_python.py`!
+The `try/except` block is supposed to determine whether the flow
+is single-phase (if it's two-phase, `fluid.speed_sound()` raises an error).
+But that’s not what happens!
+It works perfectly with the HEOS backend, but with BICUBIC, for some reason, the `try` block
+doesn't raise an error; it calculates something instead (from what I gathered in some GitHub discussions,
+it only treats it as two-phase if all interpolation points are on the same side of the dome,
+or something like that—to be honest, I didn't fully understand it). Anyway, BICUBIC causes issues.
+I already fixed this in the Cython code, but I didn't touch it here since I'm not using that code anymore.
+I left a screenshot in this folder showing the difference between HEOS and BICUBIC.
+After the fix, everything matched up perfectly! :)
+I posted some photos showing the BICUBIC before and after. You can see that after the fix, it matches the HEOS!
