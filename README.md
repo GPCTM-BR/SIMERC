@@ -21,10 +21,10 @@ Among the features of this program are:
 - Batch Sim results can be viewed within the program itself, and exported as csv, xlsx, or parquet
 - The parameters $\phi_m$ and $\psi$ can be expressions as functions of _Ar_ and _Pr_, as in the work of [Cardemil and Colle (2012)](https://doi.org/10.1016/j.enconman.2012.05.009).
   
-Example of results obtained for R134a, using the BICUBIC backend with 8 million simulations (the graphical visualization was made using [Blender](https://www.blender.org/), based on [this data](https://drive.google.com/drive/folders/1IA9rttPIPdTGxCPez936W97WVgaiG7nm?usp=sharing) exported by SIMERC):
-![Example of results](docstrings/images/R134a%208M%20FINAL.webp)
+Example of results obtained for R134a, using the BICUBIC backend with 1 million simulations (the graphical visualization was made using [Blender](https://www.blender.org/), based on [this data](https://drive.google.com/drive/folders/1IA9rttPIPdTGxCPez936W97WVgaiG7nm?usp=drive_link) exported by SIMERC):
+![Example of results](docstrings/images/R134a%201%20Million%20Simulations%20-%20BICUBIC.webp)
   
-Other program screenshots:
+## Other program screenshots:
 ![Print 02 - Program GUI](docstrings/images/print2.png)
 <div align=center>
     Batch Sim tab
@@ -38,7 +38,18 @@ Other program screenshots:
 ![Print 04 - Program GUI](docstrings/images/print4.png)
 <div align=center>
     Settings tab
-</div>
+</div>  
+<br>
+
+## Benchmark
+Benchmark performed with 1 million simulations using SIMERC, comparing the HEOS and BICUIC backends and also the impact of parallel and sequential processing. A reduction in simulation time of approximately **20x** was observed between the worst and best case scenarios.
+
+![Print 02 - Program GUI](docstrings/images/Benchmark.webp)
+<div align=center>
+    Benckmark - 1 Million Simulations  
+</div>  
+<br>
+
   
   
 # CODE AND DOWNLOAD
