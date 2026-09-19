@@ -71,7 +71,7 @@ External Python packages used in this project, whether in the main program or in
   
   
 ## License
-This project is licensed under the MIT License — see the [LICENSE](SIMERC/LICENSE.txt) file for details.
+This project is licensed under the MIT License — see the [LICENSE](GPCTM-BR/SIMERC/LICENSE.txt) file for details.
   
   
 # 
